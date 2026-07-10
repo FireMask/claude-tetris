@@ -1,0 +1,40 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  triage:
+    if: github.event.action == 'opened' || github.event.changes.body != null
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        id: claude-triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: >-
+            --allowedTools "Bash(gh label list),Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*)"
+          prompt: |
+            Analiza el issue #${{ github.event.issue.number }} de este repositorio.
+            1. Ejecuta `gh label list` para ver los labels disponibles.
+            2. Lee el issue con `gh issue view ${{ github.event.issue.number }}`.
+            3. Asigna SÓLO labels que ya existan en el repositorio, usando
+               `gh issue edit ${{ github.event.issue.number }} --add-label "<label>"`.
+               No crees labels nuevos.
+            4. Publica un comentario en español en el issue con un diagnóstico general:
+               resumen del problema, área o archivo probablemente afectado, posibles causas
+               y siguientes pasos sugeridos. Usa
+               `gh issue comment ${{ github.event.issue.number }} --body "..."`.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
