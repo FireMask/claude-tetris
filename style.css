@@ -244,7 +244,7 @@ kbd {
   align-items: center;
 }
 
-#overlay-title {
+.overlay-title {
   font-size: 28px;
   font-weight: 800;
   letter-spacing: 4px;
@@ -257,7 +257,8 @@ kbd {
   color: var(--accent);
 }
 
-#restart-btn {
+#restart-btn,
+#start-btn {
   margin-top: 8px;
   background: var(--accent);
   color: var(--restart-text);
@@ -271,8 +272,132 @@ kbd {
   transition: background 0.15s;
 }
 
-#restart-btn:hover {
+#restart-btn:hover,
+#start-btn:hover {
   background: var(--accent-hover);
+}
+
+/* ---- High scores / stats ---- */
+#overlay-extra {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 220px;
+}
+
+#overlay-extra.hidden {
+  display: none;
+}
+
+.highscore-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.highscore-list {
+  list-style: none;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.highscore-list li {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.highscore-list li.empty {
+  color: var(--label-color);
+  text-align: center;
+  font-style: italic;
+}
+
+.highscore-list li.highlight {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(122, 162, 247, 0.15);
+  font-weight: 700;
+}
+
+.stats-line {
+  font-size: 12px;
+  color: var(--controls-color);
+  text-align: center;
+}
+
+.name-entry {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.name-entry.hidden {
+  display: none;
+}
+
+#player-name-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+#save-score-btn {
+  background: var(--accent);
+  color: var(--restart-text);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#save-score-btn:hover {
+  background: var(--accent-hover);
+}
+
+.overlay-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.reset-records-btn {
+  background: transparent;
+  color: var(--controls-color);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.reset-records-btn:hover {
+  color: var(--overlay-title-color);
+  border-color: var(--overlay-title-color);
+}
+
+#start-screen .overlay-box {
+  width: 260px;
 }
 
 /* ---- Pause menu ---- */
