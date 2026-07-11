@@ -4,7 +4,7 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
+const COLORS_RETRO = [
   null,
   '#4dd0e1', // I - cyan
   '#ffd54f', // O - yellow
@@ -14,6 +14,50 @@ const COLORS = [
   '#7986cb', // J - indigo
   '#39ff14', // L - neon green
 ];
+
+const COLORS_NEON = [
+  null,
+  '#00e5ff',
+  '#fff176',
+  '#e040fb',
+  '#69f0ae',
+  '#ff1744',
+  '#536dfe',
+  '#76ff03',
+];
+
+const COLORS_PASTEL = [
+  null,
+  '#a8dadc',
+  '#ffe8a3',
+  '#d8b4e2',
+  '#b8e0c2',
+  '#f4a6a6',
+  '#a8b4e2',
+  '#b5e8b0',
+];
+
+const COLORS_PIXEL = [
+  null,
+  '#4dd0e1',
+  '#ffd54f',
+  '#ba68c8',
+  '#81c784',
+  '#e57373',
+  '#7986cb',
+  '#39ff14',
+];
+
+// SKINS maps a skin name to its color palette and per-block draw routine.
+// The draw functions (drawRetroBlock, etc.) are declared later in this file;
+// function declarations are hoisted, so referencing them here before their
+// textual definition is safe.
+const SKINS = {
+  retro: { colors: COLORS_RETRO, draw: drawRetroBlock },
+  neon: { colors: COLORS_NEON, draw: drawNeonBlock },
+  pastel: { colors: COLORS_PASTEL, draw: drawPastelBlock },
+  pixel: { colors: COLORS_PIXEL, draw: drawPixelBlock },
+};
 
 const PIECES = [
   null,
@@ -51,8 +95,17 @@ const startHighscoresEl = document.getElementById('start-highscores');
 const startStatsEl = document.getElementById('start-stats');
 const startBtn = document.getElementById('start-btn');
 const resetRecordsBtns = document.querySelectorAll('.reset-records-btn');
+const skinSelect = document.getElementById('skin-select');
+const pauseOverlay = document.getElementById('pause-overlay');
+const resumeBtn = document.getElementById('resume-btn');
+const restartMenuBtn = document.getElementById('restart-menu-btn');
+const toggleControlsBtn = document.getElementById('toggle-controls-btn');
+const menuControls = document.getElementById('menu-controls');
+const startLevelSelect = document.getElementById('start-level-select');
 
 const THEME_KEY = 'tetris-theme';
+const START_LEVEL_KEY = 'tetris-start-level';
+const MAX_START_LEVEL = 15;
 let gridColor = '#22222e';
 
 const HIGHSCORES_KEY = 'tetris-highscores';
@@ -152,6 +205,25 @@ startBtn.addEventListener('click', () => {
   init();
 });
 
+for (let lvl = 1; lvl <= MAX_START_LEVEL; lvl++) {
+  const opt = document.createElement('option');
+  opt.value = lvl;
+  opt.textContent = lvl;
+  startLevelSelect.appendChild(opt);
+}
+
+function getStartLevel() {
+  const stored = parseInt(localStorage.getItem(START_LEVEL_KEY), 10);
+  if (Number.isInteger(stored) && stored >= 1 && stored <= MAX_START_LEVEL) return stored;
+  return 1;
+}
+
+startLevelSelect.value = getStartLevel();
+
+startLevelSelect.addEventListener('change', () => {
+  localStorage.setItem(START_LEVEL_KEY, startLevelSelect.value);
+});
+
 function updateGridColor() {
   gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid-line').trim();
 }
@@ -169,6 +241,30 @@ themeSwitch.addEventListener('change', () => {
 });
 
 applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+
+const SKIN_KEY = 'tetris-skin';
+let currentSkin = 'retro';
+
+function applySkin(skin) {
+  currentSkin = SKINS[skin] ? skin : 'retro';
+  document.body.dataset.skin = currentSkin;
+  skinSelect.value = currentSkin;
+  updateGridColor();
+}
+
+skinSelect.addEventListener('change', () => {
+  const skin = skinSelect.value;
+  localStorage.setItem(SKIN_KEY, skin);
+  applySkin(skin);
+  // Redraw immediately so the switch applies live. board/current only exist
+  // once init() has run (below); guard so an early change event can't throw.
+  if (typeof board !== 'undefined' && board && typeof current !== 'undefined' && current) {
+    draw();
+    drawNext();
+  }
+});
+
+applySkin(localStorage.getItem(SKIN_KEY) || 'retro');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId, combo, started;
 
@@ -301,14 +397,83 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const skin = SKINS[currentSkin] || SKINS.retro;
+  const color = skin.colors[colorIndex];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  skin.draw(context, x, y, color, size);
   context.globalAlpha = 1;
+}
+
+// Retro: the original flat block with a light top highlight strip.
+function drawRetroBlock(context, gx, gy, color, size) {
+  context.fillStyle = color;
+  context.fillRect(gx * size + 1, gy * size + 1, size - 2, size - 2);
+  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillRect(gx * size + 1, gy * size + 1, size - 2, 4);
+}
+
+// Neon: glowing block on (CSS-driven) black board background.
+function drawNeonBlock(context, gx, gy, color, size) {
+  const px = gx * size + 1;
+  const py = gy * size + 1;
+  const s = size - 2;
+  context.save();
+  context.shadowBlur = 10;
+  context.shadowColor = color;
+  context.fillStyle = color;
+  context.fillRect(px, py, s, s);
+  context.shadowBlur = 0;
+  context.strokeStyle = 'rgba(255,255,255,0.55)';
+  context.lineWidth = 1;
+  context.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
+  context.restore();
+}
+
+// Pastel: muted palette with rounded corners and a soft top highlight.
+function drawPastelBlock(context, gx, gy, color, size) {
+  const px = gx * size + 1;
+  const py = gy * size + 1;
+  const s = size - 2;
+  const radius = Math.min(6, s / 3);
+  context.fillStyle = color;
+  if (typeof context.roundRect === 'function') {
+    context.beginPath();
+    context.roundRect(px, py, s, s, radius);
+    context.fill();
+  } else {
+    context.fillRect(px, py, s, s);
+  }
+  context.fillStyle = 'rgba(255,255,255,0.3)';
+  const highlightH = Math.max(0, s / 2 - 2);
+  if (typeof context.roundRect === 'function') {
+    context.beginPath();
+    context.roundRect(px + 2, py + 2, s - 4, highlightH, Math.max(0, radius - 2));
+    context.fill();
+  } else {
+    context.fillRect(px + 2, py + 2, s - 4, highlightH);
+  }
+}
+
+// Pixel art: flat fill with a small checkerboard texture over each block.
+function drawPixelBlock(context, gx, gy, color, size) {
+  const px = gx * size + 1;
+  const py = gy * size + 1;
+  const s = size - 2;
+  context.fillStyle = color;
+  context.fillRect(px, py, s, s);
+  const cells = 4;
+  const cellSize = s / cells;
+  context.fillStyle = 'rgba(0,0,0,0.15)';
+  for (let r = 0; r < cells; r++) {
+    for (let c = 0; c < cells; c++) {
+      if ((r + c) % 2 === 0) {
+        context.fillRect(px + c * cellSize, py + r * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+  context.strokeStyle = 'rgba(0,0,0,0.35)';
+  context.lineWidth = 1;
+  context.strokeRect(px + 0.5, py + 0.5, s - 1, s - 1);
 }
 
 function drawGrid() {
@@ -379,14 +544,12 @@ function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    pauseOverlay.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlayExtra.classList.add('hidden');
-    overlay.classList.remove('hidden');
+    pauseOverlay.classList.remove('hidden');
   }
 }
 
@@ -411,12 +574,12 @@ function init() {
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = getStartLevel();
   combo = 0;
   paused = false;
   gameOver = false;
   started = true;
-  dropInterval = 1000;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
@@ -424,13 +587,15 @@ function init() {
   updateHUD();
   overlay.classList.add('hidden');
   nameEntry.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
+  menuControls.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
 
 document.addEventListener('keydown', e => {
   if (!started) return;
-  if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -455,5 +620,17 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', init);
+
+resumeBtn.addEventListener('click', () => {
+  if (paused) togglePause();
+});
+
+restartMenuBtn.addEventListener('click', () => {
+  init();
+});
+
+toggleControlsBtn.addEventListener('click', () => {
+  menuControls.classList.toggle('hidden');
+});
 
 renderRecords(null);
